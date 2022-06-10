@@ -1,8 +1,10 @@
-#include <stdio.h>
 #include <math.h>
 #include <time.h>
 
 #include "opencl_lab2.h"
+
+#define GENERATE 1
+#define CHECK 1
 
 char* readAll(FILE *F, size_t *len) {
     fseek(F, 0, SEEK_END);
@@ -34,6 +36,12 @@ int main(int argc, char **argv) {
     char* outputFile = argv[3];
 
     FILE *F;
+
+#if GENERATE
+    if (generate(10000) != 0) {
+        return 1;
+    }
+#endif
 
     if ((F = fopen("../device.cl", "rb")) == NULL) {
         printf("Can't open file with device code, aborting\n");
@@ -275,8 +283,35 @@ int main(int argc, char **argv) {
     for (int i = 0; i < n; i++) {
         fprintf(F, "%f ", buf[i]);
     }
-
     fclose(F);
+
+#if CHECK
+    F = fopen("generated_res.out", "rb");
+    if (F == NULL) {
+        printf("Check failed: can't open file\n");
+    } else {
+        int new_n;
+        fscanf(F, "%i", &new_n);
+        if (new_n != n) {
+            printf("Dimensions are not right\n");
+        } else {
+            size_t errors = 0;
+            for (int i = 0; i < n; i++) {
+                float expected;
+                fscanf(F, "%f", &expected);
+                if (fabs(expected - buf[i]) > 0.000001) {
+                    errors++;
+                }
+            }
+            if (errors == 0) {
+                printf("Correctness: OK\n");
+            } else {
+                printf("Correctness: %zu errors NOT OK\n", errors);
+            }
+        }
+        fclose(F);
+    }
+#endif
 
     return 0;
 }
