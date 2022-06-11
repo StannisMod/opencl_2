@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     FILE *F;
 
 #if GENERATE
-    if (generate(1000000) != 0) {
+    if (generate(100000) != 0) {
         return 1;
     }
 #endif
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    const int batchSize = floor(fmin(16, (int) sqrt(localMemSize / 4 / sizeof(cl_float)) / 8 * 8));
+    const int batchSize = 256;
 
     //printf("Batch size: %i\n", batchSize);
 
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     int n;
     fscanf(F, "%i", &n);
 
-    int n_2 = (((n / 2) % batchSize) == 0 && (n % 2) == 0) ? n : ((n / 2 + batchSize - ((n / 2) % batchSize)) * 2);
+    int n_2 = ((n % batchSize) == 0) ? n : (n + batchSize - (n % batchSize));
 
     cl_float *buf = malloc(n_2 * sizeof (cl_float));
     if (buf == NULL) {
@@ -203,9 +203,37 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    struct {
+        float aggregate;
+        float inclusivePrefix;
+        int status;
+        int dummy; // for sizeof(PARTITION) == 16
+    } PARTITION;
+
+    PARTITION.aggregate = 0;
+    PARTITION.inclusivePrefix = 0;
+    PARTITION.status = 0;
+    PARTITION.dummy = 0;
+
+    cl_mem partBuffer = clCreateBuffer(context,
+                                      CL_MEM_READ_WRITE,
+                                      n_2 / batchSize * sizeof(PARTITION),
+                                      NULL, &errCode);
+    if (checkErr(errCode, "partBuffer not created")) {
+        free(buf);
+        clReleaseMemObject(srcBuffer);
+        clReleaseMemObject(resBuffer);
+        clReleaseKernel(kernel);
+        clReleaseProgram(program);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(context);
+        return 1;
+    }
+
     clSetKernelArg(kernel, 0, sizeof(srcBuffer), (void*) &srcBuffer);
     clSetKernelArg(kernel, 1, sizeof(resBuffer), (void*) &resBuffer);
     clSetKernelArg(kernel, 2, sizeof(int), &n_2);
+    clSetKernelArg(kernel, 3, sizeof(partBuffer), (void*) &partBuffer);
 
     clock_t startTime = clock();
 
@@ -226,9 +254,28 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    errCode = clEnqueueFillBuffer(queue,
+                                  partBuffer,
+                                  &PARTITION,
+                                  sizeof(PARTITION),
+                                  0,
+                                  n_2 / batchSize * sizeof(PARTITION),
+                                  0, NULL, NULL);
+
+    if (checkErr(errCode, "Error on enqueue filling device buffer")) {
+        clReleaseMemObject(srcBuffer);
+        clReleaseMemObject(resBuffer);
+        clReleaseMemObject(partBuffer);
+        clReleaseKernel(kernel);
+        clReleaseProgram(program);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(context);
+        return 1;
+    }
+
     cl_event event;
 
-    size_t global_work_size = n_2;
+    size_t global_work_size = n_2 / batchSize;
 
     clEnqueueNDRangeKernel(queue,
                            kernel,
@@ -252,6 +299,7 @@ int main(int argc, char **argv) {
     if (checkErr(errCode, "Error on enqueue (device -> host) buffer")) {
         clReleaseMemObject(srcBuffer);
         clReleaseMemObject(resBuffer);
+        clReleaseMemObject(partBuffer);
         clReleaseKernel(kernel);
         clReleaseProgram(program);
         clReleaseCommandQueue(queue);
@@ -312,6 +360,14 @@ int main(int argc, char **argv) {
         fclose(F);
     }
 #endif
+
+    clReleaseMemObject(srcBuffer);
+    clReleaseMemObject(resBuffer);
+    clReleaseMemObject(partBuffer);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+    clReleaseCommandQueue(queue);
+    clReleaseContext(context);
 
     return 0;
 }

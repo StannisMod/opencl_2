@@ -9,7 +9,7 @@ int generate(int n) {
 
     #pragma omp parallel for firstprivate(n) shared(src) default(none)
     for (int i = 0; i < n; i++) {
-        src[i] = rand() % 1000;
+        src[i] = 1;//rand() % 1000;
     }
 
     FILE* F = fopen("generated.in", "wb");
