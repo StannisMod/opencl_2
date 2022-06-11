@@ -3,7 +3,7 @@
 
 #include "opencl_lab2.h"
 
-#define GENERATE 1
+#define GENERATE 0
 #define CHECK 1
 
 char* readAll(FILE *F, size_t *len) {
@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     FILE *F;
 
 #if GENERATE
-    if (generate(10000) != 0) {
+    if (generate(1000000) != 0) {
         return 1;
     }
 #endif
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
 
     free(deviceCode);
 
-    cl_kernel kernel = clCreateKernel(program, "multiply", &errCode);
+    cl_kernel kernel = clCreateKernel(program, "prefix", &errCode);
 
     if (checkErr(errCode, "Can't create kernel")) {
         clReleaseProgram(program);
@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
     clFinish( queue);
 
     errCode = clEnqueueReadBuffer(queue,
-                                  buf,
+                                  resBuffer,
                                   CL_TRUE,
                                   0,
                                   n_2 * sizeof(cl_float),

@@ -19,6 +19,7 @@ int generate(int n) {
         return -1;
     }
 
+    fprintf(F, "%i\n", n);
     for (int i = 0; i < n; i++) {
         fprintf(F, "%f ", src[i]);
     }
@@ -49,6 +50,7 @@ int generate(int n) {
         return -1;
     }
 
+    fprintf(F, "%i\n", n);
     for (int i = 0; i < n; i++) {
         fprintf(F, "%f ", dst[i]);
     }
