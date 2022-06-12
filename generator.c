@@ -7,9 +7,8 @@ int generate(int n) {
         return -1;
     }
 
-    #pragma omp parallel for firstprivate(n) shared(src) default(none)
     for (int i = 0; i < n; i++) {
-        src[i] = 1;//rand() % 1000;
+        src[i] = rand() % 10000;
     }
 
     FILE* F = fopen("generated.in", "wb");
@@ -33,12 +32,9 @@ int generate(int n) {
 
     printf("Generating sample size %i...\n", n);
 
-    #pragma omp parallel for schedule(dynamic, 10) firstprivate(n) shared(src, dst) default(none)
+    float sum = 0;
     for (int i = 0; i < n; i++) {
-        float sum = 0;
-        for (int j = 0; j <= i; j++) {
-            sum += src[j];
-        }
+        sum += src[i];
         dst[i] = sum;
     }
     free(src);

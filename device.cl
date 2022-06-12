@@ -1,59 +1,54 @@
 typedef struct {
     float aggregate;
     float inclusivePrefix;
-    int status;  // 0 - no info, 1 - aggregate available, 2 - inclusivePrefix available
-    int dummy;
+    //int status;  // 0 - no info, 1 - aggregate available, 2 - inclusivePrefix available
+    //int dummy;
 } PARTITION;
 
-kernel void prefix(const global float* src, global float* dst, const int n, global PARTITION* p) {
-    int ind = get_global_id(0);
-    int part_start = ind * BATCH_SIZE;
+kernel void aggregate(const global float* src, global float* dst, global PARTITION* p) {
+    size_t ind = get_global_id(0);
+    size_t part_start = ind * BATCH_SIZE;
 
 // 1 & 2 done on host
 // 3
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
+    global PARTITION* me = &p[ind];
+    me->aggregate = NAN;
+    me->inclusivePrefix = NAN;
 
     float sum = 0;
-    for (int i = part_start; i < part_start + BATCH_SIZE; i++) {
+    for (size_t i = part_start; i < part_start + BATCH_SIZE; i++) {
         sum += src[i];
     }
 
-    //PARTITION me = p[ind];
-    p[ind].aggregate = sum;
-    p[ind].status = 1;
+    me->aggregate = sum;
     if (ind == 0) {
-        p[ind].inclusivePrefix = sum;
-        p[ind].status = 2;
+        me->inclusivePrefix = sum;
     }
+}
 
-    //p[ind] = me;
-
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
+kernel void reduce(const global float* src, global float* dst, global PARTITION* p) {
+    size_t ind = get_global_id(0);
+    size_t part_start = ind * BATCH_SIZE;
 // 4 & 5
-    float aggregate = 0;
-    for (int i = ind - 1; i >= 0; i--) {
-        int status;
-        // spin lock
-        while ((status = p[i].status) == 0);
+    global PARTITION* me = &p[ind];
 
-        if (status == 1) {
-            aggregate += p[i].aggregate;
-        } else {
-            aggregate += p[i].inclusivePrefix;
-            p[ind].inclusivePrefix = aggregate + sum;
-            p[ind].status = 2;
-            //p[ind] = me;
+    float aggregate = 0;
+    for (size_t i = ind; i >= 1; i--) {
+        global PARTITION* it = &p[i - 1];
+
+        if (it->inclusivePrefix != NAN) {
+            aggregate += it->inclusivePrefix;
+            me->inclusivePrefix = aggregate + me->aggregate;
             break;
+        } else {
+            aggregate += it->aggregate;
         }
     }
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
-    sum = 0;
-    for (int i = part_start; i < part_start + BATCH_SIZE; i++) {
-        sum += src[i];
-        dst[i] = sum + aggregate;
+    float res = 0;
+    for (size_t i = part_start; i < part_start + BATCH_SIZE; i++) {
+        res += src[i];
+        dst[i] = res + aggregate;
     }
 }
