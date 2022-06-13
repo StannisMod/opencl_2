@@ -37,7 +37,7 @@ kernel void reduce(const global float* src, global float* dst, global PARTITION*
     for (size_t i = ind; i >= 1; i--) {
         global PARTITION* it = &p[i - 1];
 
-        if (it->inclusivePrefix != NAN) {
+        if (!isnan(it->inclusivePrefix)) {
             aggregate += it->inclusivePrefix;
             me->inclusivePrefix = aggregate + me->aggregate;
             break;

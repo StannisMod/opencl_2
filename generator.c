@@ -8,7 +8,7 @@ int generate(int n) {
     }
 
     for (int i = 0; i < n; i++) {
-        src[i] = rand() % 10000;
+        src[i] = (float) (rand() % 2) / 2;
     }
 
     FILE* F = fopen("generated.in", "wb");

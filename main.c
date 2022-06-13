@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     }
 
 #if GENERATE
-    if (generate(100000000) != 0) {
+    if (generate(10000000) != 0) {
         return 1;
     }
 #endif
