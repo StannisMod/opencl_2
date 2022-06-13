@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
 
     cl_mem partBuffer = clCreateBuffer(context,
                                       CL_MEM_READ_WRITE,
-                                      n_2 / batchSize * 2 * sizeof(PARTITION),
+                                      n_2 / batchSize * sizeof(PARTITION),
                                       NULL, &errCode);
     if (checkErr(errCode, "partBuffer not created")) {
         free(buf);
@@ -259,26 +259,6 @@ int main(int argc, char **argv) {
                                    buf, 0, NULL, NULL);
 
     if (checkErr(errCode, "Error on enqueue (host -> device) buffer")) {
-        clReleaseMemObject(srcBuffer);
-        clReleaseMemObject(resBuffer);
-        clReleaseMemObject(partBuffer);
-        clReleaseKernel(kernelAggregate);
-        clReleaseKernel(kernelReduce);
-        clReleaseProgram(program);
-        clReleaseCommandQueue(queue);
-        clReleaseContext(context);
-        return 1;
-    }
-
-//    errCode = clEnqueueFillBuffer(queue,
-//                                  partBuffer,
-//                                  &PARTITION,
-//                                  sizeof(PARTITION),
-//                                  0,
-//                                  n_2 / batchSize * 2 * sizeof(PARTITION),
-//                                  0, NULL, NULL);
-
-    if (checkErr(errCode, "Error on enqueue filling device buffer")) {
         clReleaseMemObject(srcBuffer);
         clReleaseMemObject(resBuffer);
         clReleaseMemObject(partBuffer);
