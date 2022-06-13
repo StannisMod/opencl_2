@@ -4,7 +4,7 @@
 #include "opencl_lab2.h"
 
 #define GENERATE 0
-#define CHECK 1
+#define CHECK 0
 
 char* readAll(FILE *F, size_t *len) {
     fseek(F, 0, SEEK_END);
@@ -299,22 +299,35 @@ int main(int argc, char **argv) {
                            1,
                            NULL,
                            &global_work_size,
-                           NULL, // TODO Find local work size
+                           NULL,
                            0,
                            NULL, &event);
 
     clWaitForEvents(1, &event);
+
+    cl_ulong time_start = 0;
+    cl_ulong time_end = 0;
+
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+
+    double computeTime = (double)(time_end - time_start) / 1000000;
 
     clEnqueueNDRangeKernel(queue,
                            kernelReduce,
                            1,
                            NULL,
                            &global_work_size,
-                           NULL, // TODO Find local work size
+                           NULL,
                            0,
                            NULL, &event);
 
     clWaitForEvents(1, &event);
+
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+
+    computeTime += (double)(time_end - time_start) / 1000000;
 
     clFinish( queue);
 
@@ -325,27 +338,21 @@ int main(int argc, char **argv) {
                                   n_2 * sizeof(cl_float),
                                   buf, 0, NULL, NULL);
 
+    clReleaseMemObject(srcBuffer);
+    clReleaseMemObject(resBuffer);
+    clReleaseMemObject(partBuffer);
+    clReleaseKernel(kernelAggregate);
+    clReleaseKernel(kernelReduce);
+    clReleaseProgram(program);
+    clReleaseCommandQueue(queue);
+    clReleaseContext(context);
+
     if (checkErr(errCode, "Error on enqueue (device -> host) buffer")) {
-        clReleaseMemObject(srcBuffer);
-        clReleaseMemObject(resBuffer);
-        clReleaseMemObject(partBuffer);
-        clReleaseKernel(kernelAggregate);
-        clReleaseKernel(kernelReduce);
-        clReleaseProgram(program);
-        clReleaseCommandQueue(queue);
-        clReleaseContext(context);
+        free(buf);
         return 1;
     }
 
     double fullTime = (double)(clock() - startTime) / CLOCKS_PER_SEC * 1000;
-
-    cl_ulong time_start = 0;
-    cl_ulong time_end = 0;
-
-    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
-    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
-
-    double computeTime = (double)(time_end - time_start) / 1000000;
 
     printf("\nTime: %f\t%f \n", computeTime, fullTime);
 
@@ -391,14 +398,7 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    clReleaseMemObject(srcBuffer);
-    clReleaseMemObject(resBuffer);
-    clReleaseMemObject(partBuffer);
-    clReleaseKernel(kernelAggregate);
-    clReleaseKernel(kernelReduce);
-    clReleaseProgram(program);
-    clReleaseCommandQueue(queue);
-    clReleaseContext(context);
+    free(buf);
 
     return 0;
 }
