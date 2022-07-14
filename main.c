@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     }
 
 #if GENERATE
-    if (generate(10000000) != 0) {
+    if (generate(16000000) != 0) {
         return 1;
     }
 #endif
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    const int batchSize = 1;
+    const int batchSize = 256;
 
     //printf("Batch size: %i\n", batchSize);
 
